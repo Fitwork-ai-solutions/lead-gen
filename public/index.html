@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maps Scraper</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --surface:   #131825;
+      --surface2:  #1a2035;
+      --border:    #252d44;
+      --text:      #e2e8f0;
+      --text-dim:  #8892a8;
+      --accent:    #6366f1;
+      --accent-h:  #818cf8;
+      --green:     #22c55e;
+      --green-dim: #16a34a;
+      --red:       #ef4444;
+      --amber:     #f59e0b;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ───────────────────────────────────── */
+    .shell {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header h1 span { color: var(--accent-h); }
+    header p {
+      color: var(--text-dim);
+      margin-top: 6px;
+      font-size: 0.92rem;
+    }
+
+    /* ── Card ─────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 28px 24px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      margin-bottom: 18px;
+    }
+
+    /* ── Form ─────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .field input:focus {
+      border-color: var(--accent);
+    }
+    .field .hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ── Button ────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px 24px;
+      margin-top: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .btn:hover { background: var(--accent-h); }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      background: var(--accent);
+    }
+
+    /* ── Progress ──────────────────────────────────── */
+    #progress-section { display: none; }
+    #progress-section.visible { display: block; }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+    .progress-info .pct { color: var(--accent-h); font-weight: 600; }
+
+    .log-box {
+      margin-top: 16px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+    .log-box .log-line { white-space: pre-wrap; }
+    .log-box .log-line.err { color: var(--red); }
+
+    /* ── Results ───────────────────────────────────── */
+    #results-section { display: none; }
+    #results-section.visible { display: block; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .num {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent-h);
+    }
+    .stat-card .num.green { color: var(--green); }
+    .stat-card .num.amber { color: var(--amber); }
+    .stat-card .lbl {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .download-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .btn-dl {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 18px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-dl:hover { background: var(--green-dim); }
+
+    /* ── Table ─────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--surface2);
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td {
+      padding: 10px 14px;
+      color: var(--text);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tbody td a {
+      color: var(--accent-h);
+      text-decoration: none;
+    }
+    tbody td a:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge.open  { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge.closed{ background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge.unknown{ background: rgba(255,255,255,0.06); color: var(--text-dim); }
+
+    /* ── Error banner ─────────────────────────────── */
+    .error-banner {
+      display: none;
+      padding: 14px 18px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 10px;
+      color: var(--red);
+      font-size: 0.88rem;
+      margin-bottom: 20px;
+    }
+    .error-banner.visible { display: block; }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 560px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .download-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+
+    <!-- Header -->
+    <header>
+      <h1>Maps <span>Scraper</span></h1>
+      <p>Extract coaching centre data from Google Maps — exported as CSV</p>
+    </header>
+
+    <!-- Error Banner -->
+    <div id="error-banner" class="error-banner"></div>
+
+    <!-- Form Card -->
+    <div class="card" id="form-card">
+      <div class="card-title">Search Configuration</div>
+      <form id="scrape-form" class="form-grid">
+        <div class="field">
+          <label for="query">Search Query</label>
+          <input type="text" id="query" value="coaching centres" placeholder="e.g. coaching centres, tutoring" />
+        </div>
+        <div class="field">
+          <label for="location">Location</label>
+          <input type="text" id="location" value="Pune,India" placeholder="e.g. Mumbai,India" />
+        </div>
+        <div class="field">
+          <label for="radius">Search Radius (metres)</label>
+          <input type="number" id="radius" value="5000" min="500" max="50000" step="500" />
+          <div class="hint">500 – 50,000 m &nbsp;(5 000 = 5 km)</div>
+        </div>
+        <div class="field">
+          <label for="maxResults">Max Results (rows)</label>
+          <input type="number" id="maxResults" value="60" min="1" max="300" />
+          <div class="hint">Up to 300 — uses grid search for &gt;60</div>
+        </div>
+        <div class="full">
+          <button type="submit" class="btn" id="submit-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Start Scraping
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Progress Card -->
+    <div class="card" id="progress-section">
+      <div class="card-title">Progress</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-info">
+        <span id="progress-stage">Initialising...</span>
+        <span class="pct" id="progress-pct">0%</span>
+      </div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+
+    <!-- Results Card -->
+    <div id="results-section">
+      <!-- Stats -->
+      <div class="card">
+        <div class="card-title">Summary</div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="download-row">
+          <a id="csv-link" class="btn-dl" href="#" download>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download CSV
+          </a>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="card">
+        <div class="card-title">Results <span id="result-count"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Rating</th>
+                <th>Reviews</th>
+                <th>Open</th>
+                <th>Website</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Script ──────────────────────────────────────────── -->
+  <script>
+    const form       = document.getElementById('scrape-form');
+    const submitBtn  = document.getElementById('submit-btn');
+    const progSec    = document.getElementById('progress-section');
+    const progFill   = document.getElementById('progress-fill');
+    const progStage  = document.getElementById('progress-stage');
+    const progPct    = document.getElementById('progress-pct');
+    const logBox     = document.getElementById('log-box');
+    const resSec     = document.getElementById('results-section');
+    const statsGrid  = document.getElementById('stats-grid');
+    const resBody    = document.getElementById('results-body');
+    const resCount   = document.getElementById('result-count');
+    const csvLink    = document.getElementById('csv-link');
+    const errBanner  = document.getElementById('error-banner');
+
+    function showError(msg) {
+      errBanner.textContent = msg;
+      errBanner.classList.add('visible');
+    }
+    function hideError() {
+      errBanner.classList.remove('visible');
+    }
+
+    function appendLog(text, isError) {
+      const div = document.createElement('div');
+      div.className = 'log-line' + (isError ? ' err' : '');
+      div.textContent = text;
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function openBadge(val) {
+      if (val === 'Yes')    return '<span class="badge open">Open</span>';
+      if (val === 'No')     return '<span class="badge closed">Closed</span>';
+      return '<span class="badge unknown">Unknown</span>';
+    }
+
+    function renderStats(s) {
+      statsGrid.innerHTML = `
+        <div class="stat-card"><div class="num">${s.totalFound}</div><div class="lbl">Total Found</div></div>
+        <div class="stat-card"><div class="num green">${s.withPhone}</div><div class="lbl">With Phone</div></div>
+        <div class="stat-card"><div class="num">${s.withWebsite}</div><div class="lbl">With Website</div></div>
+        <div class="stat-card"><div class="num amber">${s.avgRating}</div><div class="lbl">Avg Rating</div></div>
+        <div class="stat-card"><div class="num">${s.nearbySearchCalls + s.placeDetailsCalls}</div><div class="lbl">API Calls</div></div>
+        <div class="stat-card"><div class="num green">$${s.totalCost.toFixed(2)}</div><div class="lbl">Est. Cost</div></div>
+      `;
+    }
+
+    function renderTable(rows) {
+      resCount.textContent = `(${rows.length})`;
+      resBody.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td title="${esc(r.name)}">${esc(r.name)}</td>
+          <td>${esc(r.phone)}</td>
+          <td>${r.rating}</td>
+          <td>${r.reviewsCount}</td>
+          <td>${openBadge(r.currentlyOpen)}</td>
+          <td>${r.website !== 'N/A' ? `<a href="${esc(r.website)}" target="_blank" rel="noopener">Link</a>` : 'N/A'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // ── Submit handler ───────────────────────────────
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const query      = document.getElementById('query').value.trim();
+      const location   = document.getElementById('location').value.trim();
+      const radius     = document.getElementById('radius').value;
+      const maxResults = document.getElementById('maxResults').value;
+
+      if (!query || !location) { showError('Please fill in Search Query and Location.'); return; }
+
+      // Reset UI
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83" stroke-linecap="round"/></svg>
+        Scraping...`;
+      progSec.classList.add('visible');
+      resSec.classList.remove('visible');
+      logBox.innerHTML = '';
+      progFill.style.width = '0%';
+      progPct.textContent = '0%';
+      progStage.textContent = 'Connecting...';
+
+      // Build SSE URL
+      const params = new URLSearchParams({ query, location, radius, maxResults });
+      const evtSource = new EventSource(`/api/scrape?${params}`);
+
+      evtSource.addEventListener('start', (e) => {
+        const d = JSON.parse(e.data);
+        appendLog(`Started: "${d.query}" in ${d.location}, radius ${d.radius}m, max ${d.maxResults}`);
+      });
+
+      evtSource.addEventListener('progress', (e) => {
+        const d = JSON.parse(e.data);
+        progFill.style.width = d.percent + '%';
+        progPct.textContent = d.percent + '%';
+        progStage.textContent = d.message;
+        appendLog(`[${d.percent}%] ${d.message}`);
+      });
+
+      evtSource.addEventListener('complete', (e) => {
+        evtSource.close();
+        const d = JSON.parse(e.data);
+
+        // Show results section
+        renderStats(d.summary);
+        renderTable(d.results);
+        csvLink.href = d.csvDownloadUrl;
+        resSec.classList.add('visible');
+
+        // Finalise progress
+        progFill.style.width = '100%';
+        progPct.textContent = '100%';
+        progStage.textContent = `Done — ${d.summary.totalFound} centres found`;
+        appendLog(`Complete! CSV ready for download.`);
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Start Scraping`;
+      });
+
+      evtSource.addEventListener('error', (e) => {
+        // SSE library error vs server-sent error event
+        if (e.data) {
+          const d = JSON.parse(e.data);
+          showError(d.message);
+          appendLog(`ERROR: ${d.message}`, true);
+        } else {
+          showError('Connection lost. The server may have crashed or the scrape failed.');
+          appendLog('ERROR: Connection lost.', true);
+        }
+        evtSource.close();
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Retry`;
+      });
+    });
+  </script>
+</body>
+</html>
